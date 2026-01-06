@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Text, TIMESTAMP, ForeignKey
+from sqlalchemy import BigInteger, TIMESTAMP, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -9,13 +9,12 @@ from sqlalchemy.sql import func
 from .base import Base
 
 
-class Playlist(Base):
-    __tablename__ = "playlists"
+class DeviceHeartbeat(Base):
+    __tablename__ = "device_heartbeats"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        BigInteger,
         primary_key=True,
-        default=uuid.uuid4,
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -24,19 +23,16 @@ class Playlist(Base):
         nullable=False,
     )
 
-    name: Mapped[str] = mapped_column(
-        Text,
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id"),
         nullable=False,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
+    heartbeat_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
 
-    items = relationship(
-        "PlaylistItem",
-        back_populates="playlist",
-        cascade="all, delete-orphan",
-    )
+    device = relationship("Device", back_populates="heartbeats")

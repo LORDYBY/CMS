@@ -1,16 +1,14 @@
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Text, TIMESTAMP, ForeignKey
+from sqlalchemy import Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from .base import Base
 
 
-class Playlist(Base):
-    __tablename__ = "playlists"
+class Location(Base):
+    __tablename__ = "locations"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -24,19 +22,20 @@ class Playlist(Base):
         nullable=False,
     )
 
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id"),
+        nullable=True,
+    )
+
     name: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
+    tenant = relationship("Tenant", back_populates="locations")
 
-    items = relationship(
-        "PlaylistItem",
-        back_populates="playlist",
-        cascade="all, delete-orphan",
+    parent = relationship(
+        "Location",
+        remote_side=[id],
     )

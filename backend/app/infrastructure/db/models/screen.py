@@ -1,8 +1,7 @@
-# role.py
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Text, TIMESTAMP, ForeignKey, UniqueConstraint
+from sqlalchemy import Text, TIMESTAMP, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -10,11 +9,8 @@ from sqlalchemy.sql import func
 from .base import Base
 
 
-class Role(Base):
-    __tablename__ = "roles"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),
-    )
+class Screen(Base):
+    __tablename__ = "screens"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -28,10 +24,15 @@ class Role(Base):
         nullable=False,
     )
 
-    name: Mapped[str] = mapped_column(
-        Text,
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id"),
         nullable=False,
     )
+
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    resolution: Mapped[str] = mapped_column(Text, nullable=False)
+    orientation: Mapped[str] = mapped_column(Text, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -39,5 +40,4 @@ class Role(Base):
         server_default=func.now(),
     )
 
-    tenant = relationship("Tenant", back_populates="roles")
-    users = relationship("User", secondary="user_roles", back_populates="roles")
+    device = relationship("Device", back_populates="screens")

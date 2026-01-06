@@ -1,4 +1,3 @@
-# content_version.py
 import uuid
 from datetime import datetime
 
@@ -18,7 +17,7 @@ class ContentVersion(Base):
         UniqueConstraint(
             "media_asset_id",
             "version_number",
-            name="content_versions_media_asset_id_version_number_key",
+            name="uq_content_versions_asset_version",
         ),
     )
 

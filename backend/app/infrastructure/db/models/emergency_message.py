@@ -9,8 +9,8 @@ from sqlalchemy.sql import func
 from .base import Base
 
 
-class MediaAssetModel(Base):
-    __tablename__ = "media_assets"
+class EmergencyMessage(Base):
+    __tablename__ = "emergency_messages"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -24,18 +24,34 @@ class MediaAssetModel(Base):
         nullable=False,
     )
 
-    filename: Mapped[str] = mapped_column(
+    title: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
 
-    mime_type: Mapped[str] = mapped_column(
+    message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    severity: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
 
-    size_bytes: Mapped[int] = mapped_column(
-        Text,
+    starts_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+    )
+
+    ends_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+    )
+
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
         nullable=False,
     )
 

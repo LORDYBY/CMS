@@ -1,23 +1,49 @@
-from sqlalchemy import Column, Text, DateTime, Enum, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB, BIGINT
-from sqlalchemy.sql import func
+# app/infrastructure/db/models/audit_log.py
+
+import uuid
+from datetime import datetime
+from sqlalchemy import Text, TIMESTAMP, ForeignKey, Enum, func
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID
 
 from .base import Base
-from .enums import AuditAction
 
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-    __table_args__ = (
-        Index("idx_audit_tenant_time", "tenant_id", "created_at"),
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
     )
 
-    id = Column(BIGINT, primary_key=True)
-    tenant_id = Column(UUID(as_uuid=True), nullable=False)
-    actor_user_id = Column(UUID(as_uuid=True))
-    actor_device_id = Column(UUID(as_uuid=True))
-    action = Column(Enum(AuditAction, name="audit_action"), nullable=False)
-    entity_type = Column(Text, nullable=False)
-    entity_id = Column(UUID(as_uuid=True))
-    payload = Column(JSONB, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id"),
+        nullable=False
+    )
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True
+    )
+
+    action: Mapped[str] = mapped_column(
+        Enum(name="audit_action"),
+        nullable=False
+    )
+
+    entity: Mapped[str] = mapped_column(Text, nullable=False)
+
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
