@@ -1,40 +1,3 @@
-# from fastapi import FastAPI
-# from app.settings import settings
-# from app.logging import setup_logging
-# from app.infrastructure.redis.client import connect_redis, disconnect_redis
-# from app.api.rest import router as api_router
-
-# def create_app() -> FastAPI:
-#     setup_logging()
-
-#     app = FastAPI(
-#         title="Digital Signage Backend",
-#         version="1.0.0",
-#     )
-
-#     app.include_router(api_router, prefix="/api/v1")
-
-#     @app.on_event("startup")
-#     async def startup():
-#         await connect_redis()
-
-#     @app.on_event("shutdown")
-#     async def shutdown():
-#         await disconnect_redis()
-
-#     return app
-
-# # @app.get("/health")
-# # async def health():
-# #     return {"status": "ok"}
-
-# app = create_app()
-
-
-
-#######
-
-
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import asyncio
@@ -42,14 +5,13 @@ import asyncio
 from app.logging import setup_logging
 from app.infrastructure.redis.client import connect_redis, disconnect_redis
 from app.infrastructure.redis.subscriber import redis_listener
+
 from app.api.rest import router as api_router
+from app.api.rest.health import router as health_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ======================
-    # STARTUP
-    # ======================
     print(">>> LIFESPAN: startup begin")
 
     setup_logging()
@@ -65,12 +27,14 @@ async def lifespan(app: FastAPI):
         print(">>> LIFESPAN: startup complete")
         yield
     finally:
-        # ======================
-        # SHUTDOWN
-        # ======================
         print(">>> LIFESPAN: shutdown begin")
 
         redis_task.cancel()
+        try:
+            await redis_task
+        except asyncio.CancelledError:
+            pass
+
         print(">>> LIFESPAN: redis listener cancelled")
 
         await disconnect_redis()
@@ -86,23 +50,21 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    app.include_router(api_router, prefix="/api/v1")
-    print(">>> CREATE_APP: routers mounted")
 
+
+    # Mount API routers
+    app.include_router(api_router, prefix="/api/v1")
+    app.include_router(health_router)  # <---- CORRECT HEALTH ROUTER
+
+    print("\n=== REGISTERED ROUTES ===")
+    for r in app.routes:
+        print("•", r.path, "→", r.name)
+    print("=========================\n")
+
+    print(">>> CREATE_APP: routers mounted")
     return app
 
 
+
+
 app = create_app()
-
-
-
-
-
-
-
-
-
-
-
-
-

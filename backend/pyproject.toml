@@ -17,7 +17,9 @@ dependencies = [
   "redis>=5.0",
   "python-multipart",
   "uvicorn[standard]",
-  "psycopg[binary]"
+  "psycopg[binary]",
+  "pydantic[email]",
+  "passlib[bcrypt]>=1.7.4"
 ]
 [build-system]
 requires = ["setuptools>=68"]

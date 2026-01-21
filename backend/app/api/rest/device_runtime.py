@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
-from datetime import datetime
+from app.common.time import time
+#from datetime import datetime
 
 from app.dependencies import get_current_device
 from app.infrastructure.db.session import get_db
@@ -12,6 +13,6 @@ async def heartbeat(
     device=Depends(get_current_device),
     session=Depends(get_db),
 ):
-    device.last_seen_at = datetime.utcnow()
+    device.last_seen_at = time.local_now()
     await session.commit()
     return {"status": "ok"}

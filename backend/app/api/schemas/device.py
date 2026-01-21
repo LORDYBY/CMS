@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 from uuid import UUID
 
@@ -7,3 +8,4 @@ class DeviceRegisterRequest(BaseModel):
 class DeviceRegisterResponse(BaseModel):
     device_id: UUID
     state: str
+    token: Optional[str] = None

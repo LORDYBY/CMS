@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Digital Signage Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+
+    <script defer src="boot.js"></script>
+    <script defer src="player.js"></script>
+</head>
+<body>
+
+<div id="player-container">
+    <img id="image-player" class="media-element" />
+    <video id="video-player" class="media-element" playsinline webkit-playsinline muted></video>
+
+    <div id="loading">Loading playlist…</div>
+</div>
+
+</body>
+</html>

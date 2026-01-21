@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Text, TIMESTAMP
+from sqlalchemy import Text, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -21,13 +21,14 @@ class Tenant(Base):
     status: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default="ACTIVE"
+        default="ACTIVE",
+        server_default="ACTIVE"
     )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
-        default=datetime.utcnow
+        server_default=func.now()     # DATABASE generates value
     )
 
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -35,5 +36,7 @@ class Tenant(Base):
         nullable=True
     )
 
-    # relationships are OK
     locations = relationship("Location", back_populates="tenant")
+    users = relationship("User", back_populates="tenant")
+    roles = relationship("Role", back_populates="tenant")
+    devices = relationship("Device", back_populates="tenant")

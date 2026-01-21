@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 import os
 
 from app.infrastructure.db.models import Base
-from app.infrastructure.db import models
+from app.infrastructure.db import models  # ensures all models are imported
 
 # --------------------------------------------------
-# Load .env
+# Load .env variables
 # --------------------------------------------------
 load_dotenv()
 
@@ -16,14 +16,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
-# 🔑 Convert ASYNC → SYNC for Alembic
+# Alembic needs SYNC DB URL
 SYNC_DATABASE_URL = DATABASE_URL.replace(
     "postgresql+asyncpg",
     "postgresql+psycopg"
 )
 
 # --------------------------------------------------
-# Alembic config
+# Alembic configuration
 # --------------------------------------------------
 config = context.config
 config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL)
@@ -31,6 +31,7 @@ config.set_main_option("sqlalchemy.url", SYNC_DATABASE_URL)
 if config.config_file_name:
     fileConfig(config.config_file_name)
 
+# Metadata for autogeneration
 target_metadata = Base.metadata
 
 # --------------------------------------------------
@@ -42,15 +43,18 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+
+        # IMPORTANT: detect schema changes
         compare_type=True,
+        compare_server_default=True,
+        compare_metadata=True,
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
-
 # --------------------------------------------------
-# Online migrations (SYNC ONLY)
+# Online migrations
 # --------------------------------------------------
 def run_migrations_online():
     connectable = engine_from_config(
@@ -64,12 +68,15 @@ def run_migrations_online():
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+
+            # IMPORTANT: detect schema changes
             compare_type=True,
+            compare_server_default=True,
+            compare_metadata=True,
         )
 
         with context.begin_transaction():
             context.run_migrations()
-
 
 # --------------------------------------------------
 # Entrypoint

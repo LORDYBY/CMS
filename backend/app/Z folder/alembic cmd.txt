@@ -1,0 +1,23 @@
+Database migration with alembic (empty DB)
+==========================================
+
+
+1 - alembic current         #Check DB state#
+2 - alembic stamp head       #Align Alembic metadata with DB#
+3 - alembic revision --autogenerate -m "initial schema"  #Generate initial migration#
+4 - alembic upgrade head        #Apply migration to DB#
+=================================================
+
+NB: Important rule (do NOT misuse)
+==================================
+    After this initial setup:   
+    ❌ Never run alembic stamp head again
+
+
+
+# For all future changes, the flow becomes: #
+=============================================
+
+        # modify models
+        alembic revision --autogenerate -m "add X"
+        alembic upgrade head

@@ -14,7 +14,7 @@
 
 
 ### Usage Example:
-
+#client.py (redis)
 from redis.asyncio import Redis
 from app.settings import settings
 
@@ -31,7 +31,6 @@ async def connect_redis():
         decode_responses=False,
     )
 
-    # 🔥 HARD PING TEST
     pong = await redis.ping()
     print(">>> CONNECT_REDIS: PING =", pong)
 
@@ -43,4 +42,3 @@ async def disconnect_redis():
     if redis:
         await redis.close()
         redis = None
-

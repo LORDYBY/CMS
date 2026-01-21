@@ -1,0 +1,451 @@
+0- Database preparation:
+
+#Tenants Creation:
+==================
+
+        INSERT INTO tenants (id, name, status)
+        VALUES
+            ('00000000-0000-0000-0000-000000000000', 'SYSTEM','ACTIVE'),
+            (gen_random_uuid(), 'Default Tenant', 'ACTIVE');
+
+#Roles Creation:
+================
+
+        INSERT INTO roles (id, tenant_id, name)
+            VALUES
+                (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'ROOT'),
+                (gen_random_uuid(), 'fcc77e36-bb9e-4325-b7de-11288417d6ba', 'TENANT_ADMIN'),
+                (gen_random_uuid(), 'fcc77e36-bb9e-4325-b7de-11288417d6ba', 'DEVICE_ADMIN'),
+                (gen_random_uuid(), 'fcc77e36-bb9e-4325-b7de-11288417d6ba', 'CONTENT_ADMIN'),
+                (gen_random_uuid(), 'fcc77e36-bb9e-4325-b7de-11288417d6ba', 'CONTENT_CREATOR'),
+                (gen_random_uuid(), 'fcc77e36-bb9e-4325-b7de-11288417d6ba', 'VIEWER');
+
+
+# Create 'root' user :
+======================
+
+        INSERT INTO users (id, tenant_id, email, password_hash, is_active)
+             VALUES 
+                (
+                gen_random_uuid(),
+                '00000000-0000-0000-0000-000000000000',
+                'root@cms.local',
+                '$2b$12$QFpyo4Aos2xYI5Tsfqsz..mEFyKAz8laRjKlGs6/Wc9QblDcVUsU6', --password : root
+                true
+                );
+
+# Assign root to root Roles :
+============================
+
+        INSERT INTO user_roles (user_id, role_id)
+             VALUES 
+                ('<ROOT_USER_UUID>', '<ROOT_ROLE_UUID>');
+     
+
+
+1-Testing the login JWT 
+
+http://127.0.0.1:8000/api/v1/auth/login
+
+Raw body Json
+{
+  "tenant_id": "fcc77e36-bb9e-4325-b7de-11288417d6ba",
+  "email": "mbg@bra.us",
+  "password": "admin123"
+}
+
+DB models : tenant, user and role is OK!
+
+API STRUCTURE:
+
+                       ┌──────────────────────────┐
+                       │   Client (Postman, UI)   │
+                       │ POST /api/v1/auth/login  │
+                       └──────────────┬───────────┘
+                                      │
+                                      ▼
+                        ┌─────────────────────────┐
+                        │      Uvicorn Server     │
+                        └──────────────┬──────────┘
+                                      │
+                                      ▼
+                        ┌─────────────────────────┐
+                        │       FastAPI App       │
+                        │       (main.py)         │
+                        └──────────────┬──────────┘
+     includes router with prefix       │         includes health router
+         "/api/v1"                     │              "/health"
+                                      ▼
+                ┌────────────────────────────────────────┐
+                │       api_router (api/rest/__init__)   │
+                │────────────────────────────────────────│
+                │ includes:                               │
+                │   - health_router                       │
+                │   - auth_router                         │
+                │   - devices_router                      │
+                │   - device_admin_router                 │
+                │   - ws_router                           │
+                └───────────────────┬────────────────────┘
+                                    │
+                                    ▼
+                     ┌────────────────────────────┐
+                     │  auth_router (prefix=/auth)│
+                     └───────────────┬────────────┘
+                                     │
+                                     ▼
+                       ┌───────────────────────────┐
+                       │  /login endpoint handler  │
+                       │  (auth.py)                │
+                       └───────────────┬───────────┘
+                                       │
+                                       │ Depends(get_db)
+                                       ▼
+                            ┌───────────────────────┐
+                            │  Database Session     │
+                            │  (get_db → AsyncSession)
+                            └──────────────┬────────┘
+                                           │
+                                           ▼
+                             ┌────────────────────────┐
+                             │ LoginUseCase.execute() │
+                             │ (use_cases/auth/login) │
+                             └───────────────┬────────┘
+                                             │
+                                             ▼
+                       ┌─────────────────────────────────────────┐
+                       │ UserRepository.get_by_email()           │
+                       │ (infrastructure/db/repositories/)       │
+                       └───────────────────┬─────────────────────┘
+                                           │
+                                           ▼
+                         ┌──────────────────────────────┐
+                         │ PostgreSQL Database (async)  │
+                         └──────────────────────────────┘
+                                           │
+                                           ▼
+                           ┌────────────────────────────┐
+                           │ verify_password()          │
+                           │ (common/security.py)       │
+                           └───────────────┬────────────┘
+                                           │
+                                           ▼
+                   ┌───────────────────────────────────────────┐
+                   │ create_access_token()                     │
+                   │ (infrastructure/auth/jwt.py)              │
+                   └──────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+                           ┌─────────────────────────────┐
+                           │ LoginResponse(access_token) │
+                           └─────────────────────────────┘
+                                          │
+                                          ▼
+                         ┌────────────────────────────────────┐
+                         │    FastAPI returns JSON response   │
+                         └────────────────────────────────────┘
+
+========================================================================
+
+
+NB: Async and await : 
+
+    Async:
+        """"
+        Is for handling MANY clients at the same time
+
+        Avoids blocking the server
+
+        Uses async def + await
+
+        Essential in FastAPI, SQLAlchemy async, Redis async
+        """"
+    await:
+        """
+        Means: “I am waiting, go handle other requests.”
+        """"
+
+
+Infos : For PROD ARCHITECTURE Diagram
+
+
+==================================================
+        ┌────────────────┐
+        │     Client     │
+        └───────┬────────┘
+                │ HTTPS (443)
+                ▼
+        ┌────────────────────┐
+        │       NGINX        │
+        │  reverse proxy     │
+        └───────┬────────────┘
+                │  HTTP :8000
+                ▼
+        ┌────────────────────┐
+        │     Gunicorn       │
+        │   master process   │
+        └───────┬────────────┘
+                │
+        ┌───────┴─────────────┐
+        │ Uvicorn Workers (x4)│
+        │ async FastAPI app   │
+        └─────────────────────┘
+
+===================================================
+
+
+
+          ┌──────────────┐
+          │     API      │   (REST / WS)
+          └──────┬───────┘
+                 │
+         calls Use Cases
+                 │
+      ┌──────────┴──────────┐
+      │    Use Cases        │ (application layer)
+      └──────────┬──────────┘
+                 │
+      apply Domain logic
+                 │
+         ┌───────┴────────┐
+         │    Domain      │ (entities, rules)
+         └───────┬────────┘
+                 │
+     Infrastructure Adapters
+   (DB, FS, Redis, Auth, WebSocket)
+
+
+
+
+===================================================
+2- testing the websocket :
+
+        ==> Device Test
+
+#if not installed 
+
+npm install -g wscat 
+
+wscat -c "ws://127.0.0.1:8000/api/v1/ws/device" -H "Authorization: Bearer VP2U-kNvL-ZOOBmotjsVuC1UtKF8SEN1wtkX_gzDuHg"
+
+
+        ==> Admin Test
+
+wscat -c "ws://127.0.0.1:8000/api/v1/ws/admin" -H "Authorization: Bearer <ADMIN_JWT>"
+
+
+send message via WS 
+
+{"type": "TEST_ADMIN", "msg": "hello admin ws"}
+
+
+NB : This project uses DDD (Domain-Driven Design) + Infrastructure Layer.
+
+
+                REST Layer → receives request, returns response
+                Use Case Layer → orchestrates whole operation
+                Domain Layer → business rules
+                Infrastructure Layer → repository queries
+                API Schema → shapes the JSON for response
+
+
+NB: upload logic 
+
+        """"
+        API Layer     → thin (controller)
+        Use Case      → orchestrates whole business flow
+        Domain Layer  → pure business logic
+        Infra Layer   → DB, file system, Redis, etc.
+        """"
+
+ =====>    So the upload flow should be:
+
+                REST endpoint → Use Case → Domain logic 
+                → Repository → File storage → Return result
+
+Step 7 : "What a Playlist System Must Support"
+
+                ✔ A playlist belongs to a tenant
+                ✔ A playlist has a list of ordered items
+                ✔ Each item references a media asset
+                ✔ Each item references a specific APPROVED version
+                ✔ Each item has a duration (e.g., 10 sec)
+                ✔ You can reorder items
+                ✔ You can enable/disable items
+                ✔ You can clone playlists
+                ✔ Admin UI uses this to show a timeline
+                ✔ Device downloads playlist and plays items in order
+
+####################################################################
+
+        Step 7.1 — Playlist database tables
+        Step 7.2 — Playlist repositories
+        Step 7.3 — Use case: Create playlist
+        Step 7.4 — Use case: Add items
+        Step 7.5 — Use case: List playlist with media URLs
+        Step 7.6 — Use case: Update order
+        Step 7.7 — API endpoints
+        Step 7.8 — Device-ready Playlist JSON   
+
+
+   7.1.3 : PlaylistVersion
+
+        ✔ Versioning playlist structure
+        ✔ Tracking changes over time
+        ✔ Publishing workflow for playlists
+        ✔ Rollback to previous versions
+        ✔ Storing which version is active for devices
+        ✔ Syncing with devices using a version number (like Git)
+
+        This is similar to:
+
+        Google Docs version history
+
+        Figma version
+
+        Adobe Premiere sequences
+
+        BrightSign dynamic playlist         
+
+7.2 :  Playlist Repository
+
+app/infrastructure/db/repositories/playlist_repository.py
+
+        ✔ create playlist
+        ✔ add item
+        ✔ reorder items
+        ✔ duplicate playlist
+        ✔ get playlist with full media info
+        ✔ create playlist version
+        ✔ get latest playlist version
+
+7.3: EXTENDED PLAYLIST ITEM LISTING
+
+        GET /api/v1/playlists/<playlist_id>/items
+
+7.4 — Publish Playlist
+
+        {{base_url}}/api/v1/playlists/{{playlist_id}}/publish
+
+
+7.5 — Device Playlist Fetch Endpoint
+
+
+
+E2E TEST WORKFLOW OVERVIEW :
+
+This test simulates:
+
+        Admin workflow
+        Device lifecycle
+        Playlist versioning
+        Real content playback
+        Device receiving its assigned playlist
+        NGINX serving the media files
+
+This is the exact same flow used by:
+
+        Samsung Tizen SSSP signage
+        LG WebOS signage
+        Android TV signage players
+        Chrome kiosk mode
+        BrightSign / Scala
+
+Add Playlist Items ===> OK
+Publish Playlist ===> OK
+Assign Playlist to Device  ===> OK
+Device Fetches Playlist  ===> OK
+Device Playback (Manual Test) ===> NOT done Yet 
+
+STEP 8 : DEVICE HEARTBEATS & ONLINE STATUS
+
+        1 device_heartbeats table
+        2 Repository functions
+        3 Use-case services
+        4 API endpoints
+        5 Online/offline logic
+        6 Device-side example (JS/Android)  ==> NOK
+        7 Admin-side JSON response format   ==> NOK
+
+
+STEP 9 : REAL-TIME WEBSOCKET COMMANDS
+
+        1. WebSocket connection for devices
+
+                ws://server/api/v1/devices/{device_id}/ws
+
+        2. Device authentication (JWT or device token)
+        
+        3. Real-time commands sent from Admin → Device:
+
+                play
+                pause
+                stop
+                reload_playlist
+                emergency_show
+                emergency_hide
+                reboot
+                ping
+
+        4. Device sends events to server:
+
+                playback started
+                playback ended
+                error
+                ping/pong
+                ready / idle
+
+        5. Store connections in ConnectionManager
+
+                (In-memory or Redis pub/sub for clustering)
+
+        6. Admin endpoint to trigger commands
+
+                POST /devices/{device_id}/command
+
+        7. Device-side example code (JS/Android/Pi)
+
+STEP 10 — DEVICE PLAYBACK ENGINE
+
+This is where a device (browser, Raspberry Pi, Android player) actually:
+
+        Downloads media
+        Plays videos/images
+        Loops playlist items
+        Respects durations
+        Handles transitions
+        Responds to commands (play/pause/emergency overlay)
+        Recovers after crash
+        Works offline when needed
+
+
+
+        10.1. Define standard playback protocol
+
+        (data structure the device receives)
+
+        10.2. Implement media preloading (download & caching)
+
+        (local folder cache)
+
+        10.3. Implement image/video playback loop
+
+        (using HTML5 or Android VideoView)
+
+        10.4. Handle durations, transitions, and ordering
+        10.5. React to real-time commands
+
+        (reload_playlist, emergency_show, pause, play)
+
+        10.6. Emergency Overlay Layer
+
+        (full-screen UI layer)
+
+        10.7. Crash-proof & Reconnect logic
+        10.8. Playback event reporting back to backend
+
+NB:
+
+🔵 A. Online only (simpler)
+🔵 B. Online + Offline fallback (recommended for enterprise)
+
+STEP 10.3 — BUILD THE ENTERPRISE PWA PLAYER (PART 1)

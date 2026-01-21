@@ -1,0 +1,241 @@
+
+==========================================
+DIGITAL SIGNAGE CMS — FULL ARCHITECTURE DOCUMENTATION
+VERSION D — README + ASCII DIAGRAMS + DEV ONBOARDING
+==========================================
+
+# 📘 README.md — Architecture Overview
+
+This project follows a Clean Architecture and Domain-Driven Design (DDD) approach to build a scalable, testable, and maintainable digital signage backend.
+
+The architecture separates:
+
+- Domain logic (business rules)
+- Application logic (use cases)
+- Infrastructure (DB, Filesystem, Redis, WebSockets)
+- API layer (REST + WebSocket)
+
+------------------------------------------
+TOP-LEVEL STRUCTURE
+------------------------------------------
+
+alembic/                  → Database migrations  
+app/                      → Main application (code)  
+backend/                  → Legacy or static backend (unused)  
+digital_signage_backend.egg-info/ → Python package metadata  
+docker/                   → Docker, NGINX, deployment config  
+media/                    → Media storage (uploads, tenants)  
+venv/                     → Python virtual environment  
+
+------------------------------------------
+APP STRUCTURE (Clean Architecture)
+------------------------------------------
+
+app/
+├── api/                  → Presentation layer (REST & WebSocket)
+├── common/               → Shared utilities, exceptions, helpers
+├── domain/               → Business rules (Entities, Value Objects, Policies)
+├── infrastructure/       → Technical details (DB, Redis, FS)
+├── use_cases/            → Application logic (actions)
+└── tests/                → Unit & integration tests
+
+------------------------------------------
+API LAYER — app/api/
+------------------------------------------
+
+api/
+├── rest/                 → FastAPI routes (HTTP)
+├── schemas/              → Pydantic API DTOs
+└── ws/                   → WebSocket endpoints
+
+The API layer:
+✔ Validates input  
+✔ Calls use cases  
+✔ Returns response DTOs  
+
+It does NOT contain business logic.
+
+------------------------------------------
+DOMAIN LAYER — app/domain/
+------------------------------------------
+
+The domain represents PURE BUSINESS LOGIC.
+
+domain/
+├── entities/             → Core business entities (Device, Playlist, Media…)
+├── enums/                → Enumerations
+├── media/                → Media domain rules
+├── policies/             → Business invariants
+└── value_objects/        → Immutable objects
+
+Domain has:
+✔ Rules  
+✔ Invariants  
+✔ Pure models  
+
+Domain does NOT:
+✘ Talk to DB  
+✘ Know HTTP  
+✘ Know FastAPI  
+
+------------------------------------------
+USE CASE LAYER — app/use_cases/
+------------------------------------------
+
+Use cases represent APPLICATION LOGIC.
+
+use_cases/
+├── audit/
+├── auth/
+├── content/
+├── devices/
+├── emergency/
+└── playlist/
+
+Use cases:
+✔ Apply workflow logic  
+✔ Use repositories  
+✔ Apply domain rules  
+✔ Return DTOs  
+
+Use cases DO NOT:
+✘ Know HTTP  
+✘ Access the DB directly  
+✘ Handle JSON  
+
+------------------------------------------
+INFRASTRUCTURE LAYER — app/infrastructure/
+------------------------------------------
+
+Adapters and frameworks:
+
+infrastructure/
+├── auth/                 → JWT, password hashing
+├── db/
+│   ├── models/           → SQLAlchemy ORM models
+│   ├── repositories/     → Repository implementations
+├── filesystem/           → Media file handling
+├── redis/                → Pub/Sub client
+└── websocket/            → WS connection manager
+
+Infrastructure does:
+✔ Implement interfaces for use cases  
+✔ Handle databases, files, redis  
+✔ Manage tokens  
+
+------------------------------------------
+ASCII DIAGRAM — CLEAN ARCHITECTURE
+------------------------------------------
+
+             +-----------------------+
+             |       API Layer       |
+             |  REST / WebSockets    |
+             +-----------+-----------+
+                         |
+                         v
+               +---------+----------+
+               |      Use Cases     |
+               +---------+----------+
+                         |
+                         v
+               +---------+----------+
+               |     Domain Layer   |
+               | Entities / Policies|
+               +---------+----------+
+                         |
+          +--------------+----------------+
+          | Infrastructure Layer (DB, FS, |
+          | Redis, WebSocket, Auth, etc) |
+          +-------------------------------+
+
+------------------------------------------
+ASCII DIAGRAM — REQUEST FLOW
+------------------------------------------
+
+Client
+  ↓
+API (FastAPI)
+  ↓
+Use Case
+  ↓
+Domain (entities + rules)
+  ↓
+Repository (DB)
+  ↓
+Infrastructure (FS, Redis, WS)
+  ↓
+Use Case Output
+  ↓
+API Response (DTO)
+  ↓
+Client
+
+------------------------------------------
+DEVELOPER ONBOARDING GUIDE
+------------------------------------------
+
+Welcome to the Digital Signage CMS backend!
+
+# 1. Requirements
+- Python 3.10+
+- PostgreSQL
+- Redis
+- FFmpeg (optional for future transcoding)
+- Docker (recommended)
+
+# 2. Setup Environment
+
+Create virtual environment:
+python -m venv venv
+source venv/bin/activate  (Linux)
+venv\Scripts\activate   (Windows)
+
+Install dependencies:
+pip install -r requirements.txt
+
+# 3. Initialize Database
+Run Alembic migrations:
+alembic upgrade head
+
+# 4. Project Run (Dev)
+uvicorn app.api.rest.main:app --reload
+
+# 5. Running Tests
+pytest -q
+
+# 6. Architecture Principles
+- Do NOT put business logic in API
+- Do NOT access database in use cases directly
+- Domain is PURE and isolated
+- Infrastructure is replaceable
+- DTOs for ALL input/output
+- WebSocket events handled via use cases
+
+# 7. Coding Rules
+✔ Always create a DTO for new API requests  
+✔ Always create a Use Case for new business actions  
+✔ Repositories must NOT contain business rules  
+✔ Domain entities must validate themselves  
+✔ No circular dependencies allowed  
+
+# 8. Adding a New Feature
+Example: “Suspend a Device”
+
+Steps:
+1. Add a domain rule (policy)
+2. Add a use case (SuspendDeviceUseCase)
+3. Add repository method → update device status
+4. Add API endpoint → call use case
+5. Add tests
+
+# 9. Folder Responsibility Summary
+api/            → HTTP & WS interface  
+use_cases/      → Application logic  
+domain/         → Pure business logic  
+infrastructure/ → DB, FS, Redis adapters  
+common/         → Shared utilities  
+tests/          → Test suite  
+
+------------------------------------------
+END OF DOCUMENT
+------------------------------------------

@@ -5,6 +5,7 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
+
 MAX_PASSWORD_LENGTH = 72
 
 def hash_password(password: str) -> str:

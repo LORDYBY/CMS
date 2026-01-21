@@ -1,0 +1,9 @@
+{
+  "name": "Digital Signage Player",
+  "short_name": "Signage",
+  "display": "fullscreen",
+  "start_url": "/player/index.html",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": []
+}

@@ -1,9 +1,11 @@
 from pathlib import Path
+from app.settings import settings
 
-MEDIA_ROOT = Path("/media")  # Docker mount
-UPLOADS_DIR = MEDIA_ROOT / "uploads"
-THUMBNAILS_DIR = MEDIA_ROOT / "thumbnails"
+def tenant_root(tenant_id: str) -> Path:
+    return settings.MEDIA_ROOT / "tenants" / tenant_id
 
-def ensure_directories() -> None:
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    THUMBNAILS_DIR.mkdir(parents=True, exist_ok=True)
+def tenant_media_root(tenant_id: str) -> Path:
+    return tenant_root(tenant_id) / "media"
+
+def tenant_emergency_root(tenant_id: str) -> Path:
+    return tenant_root(tenant_id) / "emergency"
